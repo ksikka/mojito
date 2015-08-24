@@ -9,39 +9,33 @@ var MAX_LIMIT: number = 100;
 
 var user: asana.User;
 
-
 client.users.me()
   .then((me: asana.User) => {
     user = me;
     // :TODO: check if WORKSPACE_ID exists in user.workspaces
-    console.log(`Welcome, ${user.name}. Fetching your projects and tasks...`);
-    return client.projects.findAll({
-      archived: false,
-      workspace: WORKSPACE_ID,
-      limit: MAX_LIMIT
-    })
-    .then((projects: asana.Collection<asana.Project>) => {
-      return projects.fetch();
-    });
+    console.log(`Welcome, ${user.name}. Fetching your projects...`);
+    // :HACK: Can't use `client.projects.findAll` - https://github.com/Asana/node-asana/issues/74
+    return (<any>client).dispatcher.get(`/workspaces/${WORKSPACE_ID}/projects`)
+      .then((projects: {data: Array<asana.Project>}) => projects.data);
   })
-  .then((projects: Array<asana.Project>) => {
-    var projectTasksPromises: Array<Promise<Array<asana.Task>>> = projects.map((project: asana.Project) => {
+  .then((projects: Array<asana.Project>): Array<Promise<Array<asana.Task>>> => {
+    console.log('Fetching your projects\' tasks..');
+    return projects.map((project: asana.Project): Promise<Array<asana.Task>> => {
       return client.tasks.findAll({
         assignee: user.id,
         project: project.id,
-        fields: ['assignee_status', 'complete'],
+        opt_fields: 'name,assignee_status,completed,completed_at',
         limit: MAX_LIMIT
       })
-        .then((projects: asana.Collection<asana.Project>) => {
-          return projects.fetch();
+        .then((tasks: asana.Collection<asana.Task>): Promise<Array<asana.Task>> => tasks.fetch())
+        .then((tasks: Array<asana.Task>) => {
+          console.log('');
+          console.log('Project: ' + project.name);
+          console.log('Completed: ' + tasks.filter((t) => t.completed).length);
+          console.log('Remaining: ' + tasks.filter((t) => !t.completed).length);
+          return tasks;
         });
     });
-    return [];
   })
-  .then((tasks: Array<asana.Task>) => {
-    for (var task of tasks) {
-      console.log(task);
-    }
-  })
+  .all()
   .done();
-
