@@ -1,6 +1,7 @@
 /// <reference path="./typings/tsd.d.ts"/>
 
 import asana = require('asana');
+import Parsing = require('./parsing');
 
 var client = asana.Client.create().useBasicAuth('/* YOUR SECRET KEY HERE */');
 
