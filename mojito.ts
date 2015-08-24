@@ -1,6 +1,8 @@
 /// <reference path="./typings/tsd.d.ts"/>
 
 import asana = require('asana');
+import _ = require('lodash');
+
 import Parsing = require('./parsing');
 
 var client = asana.Client.create().useBasicAuth('/* YOUR SECRET KEY HERE */');
@@ -25,6 +27,7 @@ client.tasks.findAll({
   .then((result) => result.fetch())
   .then((tasks: Array<asana.Task>) => {
     var projects: {[projectId: string]: MProject} = {};
+
     tasks.forEach((asanaTask: asana.Task) => {
       asanaTask.projects.forEach((asanaProject: asana.Project) => {
         if (!projects[asanaProject.id.toString()]) {
@@ -38,16 +41,17 @@ client.tasks.findAll({
       });
     });
 
-    var mProjects = Object.keys(projects).map((projectId: string): MProject => {
-      return projects[projectId];
-    });
+    _.values(projects).forEach((project: MProject) => {
+      var tasks: Array<asana.Task> = project.tasks;
 
-    mProjects.forEach((project: MProject) => {
-      console.log('');
-      console.log('Project: ' + project.name);
-      //console.log(tasks);
-      console.log('Completed: ' + project.tasks.filter((t) => t.completed).length);
-      console.log('Remaining: ' + project.tasks.filter((t) => !t.completed).length);
+      console.log('\nProject: ' + project.name);
+
+      for (var task of tasks) {
+        console.log(`${task.completed ? '☑' : '☐' } ${task.name}`);
+      }
+
+      // console.log('Completed: ' + project.tasks.filter((t) => t.completed).length);
+      // console.log('Remaining: ' + project.tasks.filter((t) => !t.completed).length);
     });
   })
   .done();

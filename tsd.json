@@ -7,6 +7,9 @@
   "installed": {
     "bluebird/bluebird.d.ts": {
       "commit": "af81415504b4edce8dac8446d96857f8018c6e9f"
+    },
+    "lodash/lodash.d.ts": {
+      "commit": "c5a2f44bab06cf9f2bcc14530171daac1cebff6c"
     }
   }
 }
