@@ -21,6 +21,7 @@ declare module 'asana' {
     completed_at: string; // ISO 8601
     created_at: string; // ISO 8601
     name?: string;
+    projects?: Array<Project>;
   }
 
   export interface Workspace extends ResourceResponse {
