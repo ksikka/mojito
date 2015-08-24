@@ -2,8 +2,8 @@
 
 module Parsing {
   var numberRegex = '[0-9]*\.?[0-9]+';
-  var hourRegex = `(${numberRegex})h`;
-  var minuteRegex = `(${numberRegex})m`;
+  var hourRegex = `(${numberRegex})H`;
+  var minuteRegex = `(${numberRegex})M`;
   var hourMinuteRegex = `${hourRegex}\\s*:?\\s*${minuteRegex}`;
   var tagRegex = (timeRegex: string): string => `\\[([EA]:)?\\s*${timeRegex}\\s*\\]`;
 
@@ -13,7 +13,7 @@ module Parsing {
     minutes?: number;
   }
 
-  export function parseTag(s: string): Duration {
+  function parseTag(s: string): Duration {
     /*
     Tests:
 
@@ -26,6 +26,8 @@ module Parsing {
     console.log( Parsing.parseTag('[3h : .3m]') );
     console.log( Parsing.parseTag('[E:3h:.3m]') );
     console.log( Parsing.parseTag('[E: 3h:.3m]') );
+    console.log( Parsing.parseTag('[E: 1h]') );
+    console.log( Parsing.parseTag('[E: 30m]') );
 
     { hours: 3 }
     { hours: 3.3 }
@@ -36,36 +38,55 @@ module Parsing {
     { hours: 3, minutes: 0.3 }
     { hours: 3, minutes: 0.3, tagType: 'E' }
     { hours: 3, minutes: 0.3, tagType: 'E' }
+    { hours: 1, tagType: 'E' }
+    { minutes: 30, tagType: 'E' }
     */
 
-    var hasHour = s.indexOf('h') > 0;
-    var hasMinute = s.indexOf('m') > 0;
+    s = s.toUpperCase();
+    var hasHour = s.indexOf('H') > 0;
+    var hasMinute = s.indexOf('M') > 0;
     var result;
+
+    var duration: Duration = null;
 
     if (hasHour && !hasMinute) {
       result = new RegExp(tagRegex(hourRegex)).exec(s);
       if (result) {
-        return { hours: parseFloat(result[2]) };
+        duration = { hours: parseFloat(result[2]) };
+        if (result[1]) { duration.tagType = result[1][0]; } // keep the first char }
       }
     } else if (hasMinute && !hasHour) {
       result = new RegExp(tagRegex(minuteRegex)).exec(s);
       if (result) {
-        return { minutes: parseFloat(result[2]) };
+        duration = { minutes: parseFloat(result[2]) };
+        if (result[1]) { duration.tagType = result[1][0]; } // keep the first char }
       }
     } else if (hasHour && hasMinute) {
       result = new RegExp(tagRegex(hourMinuteRegex)).exec(s);
       if (result) {
-        var duration: Duration = {
+        duration = {
           hours: parseFloat(result[2]),
           minutes: parseFloat(result[3])
         };
-        if (result[1]) {
-          duration.tagType = result[1][0]; // keep the first char
-        }
-        return duration;
+        if (result[1]) { duration.tagType = result[1][0]; } // keep the first char }
       }
     }
-    return null;
+    return duration;
+  }
+
+  export function parseTags(s): Array<Duration> {
+    var notTagDelim = '[^\\[\\]]';
+    var tagsRegex = new RegExp(`(\\[${notTagDelim}+\\])`, 'g');
+    var result = tagsRegex.exec(s);
+    var durations = [];
+    while (result) {
+      var parsed = parseTag(result[1]);
+      if (parsed) {
+        durations.push(parsed);
+      }
+      result = tagsRegex.exec(s);
+    }
+    return durations;
   }
 }
 

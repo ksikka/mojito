@@ -32,11 +32,36 @@ client.users.me()
       })
         .then((tasks: asana.Collection<asana.Task>): Promise<Array<asana.Task>> => tasks.fetch())
         .then((tasks: Array<asana.Task>) => {
-          console.log('');
-          console.log('Project: ' + project.name);
+          function minutes(duration: Parsing.Duration): number {
+            return (60 * (duration.hours || 0)) + ((duration.minutes || 0));
+          }
+
+          var projectDuration: Parsing.Duration = Parsing.parseTags(project.name)[0];
+          if (!projectDuration) return;
+
+          var timeLeft: number = minutes(projectDuration);
+
+          console.log('\nProject: ' + project.name);
 
           for (var task of tasks) {
-            console.log(`${task.completed ? '☑' : '☐' } ${task.name}`);
+            if (timeLeft < 0) break;
+            var tags: Array<Parsing.Duration> = Parsing.parseTags(task.name);
+            var estDuration: Parsing.Duration,
+                actDuration: Parsing.Duration,
+                taskDuration: Parsing.Duration;
+
+            if (task.completed) {
+              actDuration = tags.filter((t) => t.tagType === 'A')[0];
+              taskDuration = actDuration;
+            } else {
+              estDuration = tags.filter((t) => t.tagType === 'E')[0];
+              estDuration = estDuration || tags.filter((t) => !t.tagType)[0];
+              taskDuration = estDuration;
+            }
+            if (taskDuration) {
+              console.log(`${task.completed ? '☑' : '☐' } ${task.name}`);
+              timeLeft -= minutes(taskDuration);
+            }
           }
           // console.log('Completed: ' + tasks.filter((t) => t.completed).length);
           //console.log('Remaining: ' + tasks.filter((t) => !t.completed).length);
