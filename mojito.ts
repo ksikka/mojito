@@ -46,18 +46,15 @@ client.users.me()
           for (var task of tasks) {
             if (timeLeft < 0) break;
             var tags: Array<Parsing.Duration> = Parsing.parseTags(task.name);
-            var estDuration: Parsing.Duration,
-                actDuration: Parsing.Duration,
-                taskDuration: Parsing.Duration;
+            var taskDuration: Parsing.Duration;
 
             if (task.completed) {
-              actDuration = tags.filter((t) => t.tagType === 'A')[0];
-              taskDuration = actDuration;
+              taskDuration = tags.filter((t) => t.tagType === 'A')[0];
             } else {
-              estDuration = tags.filter((t) => t.tagType === 'E')[0];
-              estDuration = estDuration || tags.filter((t) => !t.tagType)[0];
-              taskDuration = estDuration;
+              taskDuration = tags.filter((t) => t.tagType === 'E')[0];
             }
+            taskDuration = taskDuration || tags.filter((t) => !t.tagType)[0];
+
             if (taskDuration) {
               console.log(`${task.completed ? '☑' : '☐' } ${task.name}`);
               timeLeft -= minutes(taskDuration);
