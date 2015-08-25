@@ -39,29 +39,59 @@ client.users.me()
           var projectDuration: Parsing.Duration = Parsing.parseTags(project.name)[0];
           if (!projectDuration) return;
 
-          var timeLeft: number = minutes(projectDuration);
-
-          console.log('\nProject: ' + project.name);
-
-          for (var task of tasks) {
-            if (timeLeft < 0) break;
+          var getTaskDuration: (task: asana.Task) => Parsing.Duration = (task) => {
             var tags: Array<Parsing.Duration> = Parsing.parseTags(task.name);
-            var taskDuration: Parsing.Duration;
-
+            var taskDuration;
             if (task.completed) {
               taskDuration = tags.filter((t) => t.tagType === 'A')[0];
             } else {
               taskDuration = tags.filter((t) => t.tagType === 'E')[0];
             }
             taskDuration = taskDuration || tags.filter((t) => !t.tagType)[0];
+            return taskDuration;
+          };
 
-            if (taskDuration) {
-              console.log(`${task.completed ? '☑' : '☐' } ${task.name}`);
-              timeLeft -= minutes(taskDuration);
+          var printTaskLines = () => {
+            var timeLeft: number = minutes(projectDuration);
+
+            for (var task of tasks) {
+              if (timeLeft < 0) break;
+              var taskDuration: Parsing.Duration = getTaskDuration(task);
+
+              if (taskDuration) {
+                console.log(`  ${task.completed ? '✓' : '☐' } ${task.name}`);
+                timeLeft -= minutes(taskDuration);
+              }
             }
+          };
+
+          var oldTasksLength = tasks.length
+          tasks = _.filter(tasks, (t) => getTaskDuration(t));
+          var numTasksWithoutDuration = oldTasksLength - tasks.length;
+
+          var completedTasks: Array<asana.Task> = _.filter(tasks, (t) => t.completed);
+
+          // For this project, how many hours have I done this week, and how many do I have left?
+          // % completed?
+
+          var minutesCompleted = _.sum(_.map(completedTasks, (t) => minutes(getTaskDuration(t))));
+          var hoursCompleted = minutesCompleted / 60;
+          var hoursRemaining = minutes(projectDuration) / 60 - hoursCompleted
+          var percentCompletion = 100 * minutesCompleted / minutes(projectDuration);
+
+          function fmtNum(num: number): number { return Math.round(num * 10) / 10;}
+
+          console.log(`\n${project.name}: ${fmtNum(percentCompletion)}% completed. ${fmtNum(hoursCompleted)} hours down, ${fmtNum(hoursRemaining)} to go.`);
+          if (tasks.length === 0) {
+            if (numTasksWithoutDuration === 0) {
+              console.log(`  (No tasks found.)`);
+            } else {
+              console.log(`  (No tasks found, but ${numTasksWithoutDuration} have no time estimate.)`);
+            }
+          } else {
+            printTaskLines();
           }
-          // console.log('Completed: ' + tasks.filter((t) => t.completed).length);
-          //console.log('Remaining: ' + tasks.filter((t) => !t.completed).length);
+
           return tasks;
         });
     });
