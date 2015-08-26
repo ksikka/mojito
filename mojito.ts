@@ -51,15 +51,23 @@ client.users.me()
             return taskDuration;
           };
 
-          var printTaskLines = () => {
+          var printTaskLines = (tasks: Array<asana.Task>) => {
             var timeLeft: number = minutes(projectDuration);
 
-            for (var task of tasks) {
+            var completeTasks: Array<asana.Task> = _.filter(tasks, (t) => t.completed);
+            completeTasks = _.sortBy(completeTasks, (t) => new Date(t.completed_at).valueOf());
+            for (var task of completeTasks) {
+              console.log(`  ${task.completed ? '✓' : '☐' } ${task.name}`);
+            }
+
+
+            var incompleteTasks: Array<asana.Task> = _.filter(tasks, (t) => !t.completed);
+            for (var task of incompleteTasks) {
               if (timeLeft < 0) break;
               var taskDuration: Parsing.Duration = getTaskDuration(task);
 
               if (taskDuration) {
-                console.log(`  ${task.completed ? '✓' : '☐' } ${task.name}`);
+                console.log(`  ☐ ${task.name}`);
                 timeLeft -= minutes(taskDuration);
               }
             }
@@ -69,12 +77,12 @@ client.users.me()
           tasks = _.filter(tasks, (t) => getTaskDuration(t));
           var numTasksWithoutDuration = oldTasksLength - tasks.length;
 
-          var completedTasks: Array<asana.Task> = _.filter(tasks, (t) => t.completed);
+          var completeTasks: Array<asana.Task> = _.filter(tasks, (t) => t.completed);
 
           // For this project, how many hours have I done this week, and how many do I have left?
           // % completed?
 
-          var minutesCompleted = _.sum(_.map(completedTasks, (t) => minutes(getTaskDuration(t))));
+          var minutesCompleted = _.sum(_.map(completeTasks, (t) => minutes(getTaskDuration(t))));
           var hoursCompleted = minutesCompleted / 60;
           var hoursRemaining = minutes(projectDuration) / 60 - hoursCompleted
           var percentCompletion = 100 * minutesCompleted / minutes(projectDuration);
@@ -89,7 +97,7 @@ client.users.me()
               console.log(`  (No tasks found, but ${numTasksWithoutDuration} have no time estimate.)`);
             }
           } else {
-            printTaskLines();
+            printTaskLines(tasks);
           }
 
           return tasks;
