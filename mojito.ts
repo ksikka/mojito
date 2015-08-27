@@ -57,7 +57,7 @@ client.users.me()
             var completeTasks: Array<asana.Task> = _.filter(tasks, (t) => t.completed);
             completeTasks = _.sortBy(completeTasks, (t) => new Date(t.completed_at).valueOf());
             for (var task of completeTasks) {
-              console.log(`  ${task.completed ? '✓' : '☐' } ${task.name}`);
+              console.log(`  ✓ ${task.name}`);
 
               var taskDuration: Parsing.Duration = getTaskDuration(task);
 
