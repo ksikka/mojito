@@ -39,71 +39,69 @@ client.users.me()
           var projectDuration: Parsing.Duration = Parsing.parseTags(project.name)[0];
           if (!projectDuration) return;
 
-          var getTaskDuration: (task: asana.Task) => Parsing.Duration = (task) => {
+          var getTaskDuration: (task: asana.Task, expectedTagType?: string) => Parsing.Duration = (task, expectedTagType?: string) => {
             var tags: Array<Parsing.Duration> = Parsing.parseTags(task.name);
-            var taskDuration;
-            if (task.completed) {
-              taskDuration = tags.filter((t) => t.tagType === 'A')[0];
-            } else {
-              taskDuration = tags.filter((t) => t.tagType === 'E')[0];
-            }
+            expectedTagType = expectedTagType || (task.completed ? 'A' : 'E');
+            var taskDuration = tags.filter((t) => t.tagType === expectedTagType)[0];
+            // If no tag type, the duration is both expected and actual.
             taskDuration = taskDuration || tags.filter((t) => !t.tagType)[0];
             return taskDuration;
           };
 
-          var printTaskLines = (tasks: Array<asana.Task>) => {
-            var timeLeft: number = minutes(projectDuration);
-
-            var completeTasks: Array<asana.Task> = _.filter(tasks, (t) => t.completed);
-            completeTasks = _.sortBy(completeTasks, (t) => new Date(t.completed_at).valueOf());
-            for (var task of completeTasks) {
-              console.log(`  ✓ ${task.name}`);
-
-              var taskDuration: Parsing.Duration = getTaskDuration(task);
-
-              if (taskDuration) {
-                timeLeft -= minutes(taskDuration);
-              }
-            }
-
-
-            var incompleteTasks: Array<asana.Task> = _.filter(tasks, (t) => !t.completed);
-            for (var task of incompleteTasks) {
-              if (timeLeft < 0) break;
-              var taskDuration: Parsing.Duration = getTaskDuration(task);
-
-              if (taskDuration) {
-                console.log(`  ☐ ${task.name}`);
-                timeLeft -= minutes(taskDuration);
-              }
-            }
-          };
-
-          var oldTasksLength = tasks.length
-          tasks = _.filter(tasks, (t) => getTaskDuration(t));
-          var numTasksWithoutDuration = oldTasksLength - tasks.length;
-
-          var completeTasks: Array<asana.Task> = _.filter(tasks, (t) => t.completed);
-
           // For this project, how many hours have I done this week, and how many do I have left?
           // % completed?
 
-          var minutesCompleted = _.sum(_.map(completeTasks, (t) => minutes(getTaskDuration(t))));
+          var completedTasks: Array<asana.Task> = _.filter(tasks, (t) => t.completed);
+          var incompletedTasks: Array<asana.Task> = _.filter(tasks, (t) => !t.completed);
+
+          var minutesCompleted = _.sum(_.map(completedTasks, (t) => minutes(getTaskDuration(t) || 0)));
           var hoursCompleted = minutesCompleted / 60;
           var hoursRemaining = minutes(projectDuration) / 60 - hoursCompleted
           var percentCompletion = 100 * minutesCompleted / minutes(projectDuration);
 
           function fmtNum(num: number): number { return Math.round(num * 10) / 10;}
 
+          // Project aggregate stats
+          //   - completed tasks
+          //   - incomplete tasks with time duration until plan satisfied
+          // Warnings?
+          //   ?No incomplete tasks with time duration, but N tasks without time estimates
+          //   ?There are N completed tasks with time estimates but not actual times.
+
           console.log(`\n${project.name}: ${fmtNum(percentCompletion)}% completed. ${fmtNum(hoursCompleted)} hours down, ${fmtNum(hoursRemaining)} to go.`);
-          if (tasks.length === 0) {
-            if (numTasksWithoutDuration === 0) {
-              console.log(`  (No tasks found.)`);
-            } else {
-              console.log(`  (No tasks found, but ${numTasksWithoutDuration} have no time estimate.)`);
+          _.sortBy(completedTasks, (t) => new Date(t.completed_at).valueOf()).forEach((t) => console.log(`  ✓ ${t.name}`));
+          var _minutesRemaining: number = minutes(projectDuration) - minutesCompleted;
+          incompletedTasks.forEach((task) => {
+            if (_minutesRemaining > 0) {
+              var taskDuration: Parsing.Duration = getTaskDuration(task);
+              if (taskDuration) {
+                console.log(`  ☐ ${task.name}`);
+                _minutesRemaining -= minutes(taskDuration)
+              }
             }
-          } else {
-            printTaskLines(tasks);
+          });
+
+          var warnings: Array<string> = [];
+
+          var numIncompletedTasksWithDuration = _.filter(incompletedTasks, (t) => getTaskDuration(t)).length;
+          var numIncompletedTasksWithoutDuration = incompletedTasks.length - numIncompletedTasksWithDuration;
+
+          if (numIncompletedTasksWithDuration === 0) {
+            if (numIncompletedTasksWithoutDuration > 0) {
+              warnings.push(`No tasks left with time estimates, but ${numIncompletedTasksWithoutDuration} incomplete tasks exist.`);
+            } else {
+              warnings.push(`No tasks left with time estimates.`);
+            }
+          }
+
+          var numCompletedTasksForgettingActualTimes = _.filter(completedTasks, (t) => getTaskDuration(t, 'E') && !getTaskDuration(t, 'A')).length;
+          if (numCompletedTasksForgettingActualTimes > 0) {
+            warnings.push(`Found ${numCompletedTasksForgettingActualTimes} completed tasks with Estimates but not Actual times.`);
+          }
+
+          if (warnings.length > 0) {
+            console.log('  Warnings:');
+            warnings.forEach((w) => console.log('    - '+w));
           }
 
           return tasks;
