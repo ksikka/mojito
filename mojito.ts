@@ -58,6 +58,12 @@ client.users.me()
             completeTasks = _.sortBy(completeTasks, (t) => new Date(t.completed_at).valueOf());
             for (var task of completeTasks) {
               console.log(`  ${task.completed ? '✓' : '☐' } ${task.name}`);
+
+              var taskDuration: Parsing.Duration = getTaskDuration(task);
+
+              if (taskDuration) {
+                timeLeft -= minutes(taskDuration);
+              }
             }
 
 
