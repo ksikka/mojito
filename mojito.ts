@@ -51,10 +51,12 @@ client.users.me()
           // For this project, how many hours have I done this week, and how many do I have left?
           // % completed?
 
-          var completedTasks: Array<asana.Task> = _.filter(tasks, (t) => t.completed);
-          var incompletedTasks: Array<asana.Task> = _.filter(tasks, (t) => !t.completed);
+          var completedTasks: Array<asana.Task> = tasks.filter((t) => t.completed);
+          var incompletedTasks: Array<asana.Task> = tasks.filter((t) => !t.completed);
 
-          var minutesCompleted = _.sum(_.map(completedTasks, (t) => minutes(getTaskDuration(t) || 0)));
+          var minutesCompleted = _.sum(completedTasks
+            .filter((t) => Boolean(getTaskDuration(t)))
+            .map((t) => minutes(getTaskDuration(t))));
           var hoursCompleted = minutesCompleted / 60;
           var hoursRemaining = minutes(projectDuration) / 60 - hoursCompleted
           var percentCompletion = 100 * minutesCompleted / minutes(projectDuration);
@@ -83,7 +85,7 @@ client.users.me()
 
           var warnings: Array<string> = [];
 
-          var numIncompletedTasksWithDuration = _.filter(incompletedTasks, (t) => getTaskDuration(t)).length;
+          var numIncompletedTasksWithDuration = incompletedTasks.filter((t) => Boolean(getTaskDuration(t))).length;
           var numIncompletedTasksWithoutDuration = incompletedTasks.length - numIncompletedTasksWithDuration;
 
           if (numIncompletedTasksWithDuration === 0) {
@@ -94,7 +96,7 @@ client.users.me()
             }
           }
 
-          var numCompletedTasksForgettingActualTimes = _.filter(completedTasks, (t) => getTaskDuration(t, 'E') && !getTaskDuration(t, 'A')).length;
+          var numCompletedTasksForgettingActualTimes = completedTasks.filter((t) => getTaskDuration(t, 'E') && !getTaskDuration(t, 'A')).length;
           if (numCompletedTasksForgettingActualTimes > 0) {
             warnings.push(`Found ${numCompletedTasksForgettingActualTimes} completed tasks with Estimates but not Actual times.`);
           }
