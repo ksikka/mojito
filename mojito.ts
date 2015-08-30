@@ -37,11 +37,19 @@ client.users.me()
       return client.tasks.findAll({
         assignee: user.id,
         project: project.id,
-        opt_fields: 'name,assignee_status,completed,completed_at',
+        opt_fields: 'name,assignee_status,completed,completed_at,created_at',
         limit: MAX_LIMIT
       })
         .then((tasks: asana.Collection<asana.Task>): Promise<Array<asana.Task>> => tasks.fetch())
         .then((tasks: Array<asana.Task>) => {
+          tasks = tasks.filter((t) => {
+            if (t.completed) {
+              var completedTime: number = new Date(t.completed_at).getTime();
+              return START_TIME.getTime() <= completedTime && completedTime < END_TIME.getTime();
+            } else {
+              return new Date(t.created_at).getTime() < END_TIME.getTime();
+            }
+          });
           Tasks.processProject(project, tasks);
           return tasks;
         });
