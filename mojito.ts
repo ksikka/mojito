@@ -9,6 +9,17 @@ var client = asana.Client.create().useBasicAuth('/* YOUR SECRET KEY HERE */');
 var WORKSPACE_ID: number = 498346170860;
 var MAX_LIMIT: number = 100;
 
+var NOW: Date = new Date();
+var START_TIME: Date = new Date(
+  NOW.getFullYear(),
+  NOW.getMonth(),
+  NOW.getDate() - NOW.getDay() // Sunday of this week.
+);
+var WEEKS_BACK = parseInt(process.argv[2]) || 0;
+var WEEK_MS = 7*24*60*60*1000;
+START_TIME = new Date(START_TIME.getTime() - WEEKS_BACK * WEEK_MS);
+var END_TIME: Date = new Date(START_TIME.getTime() + WEEK_MS);
+
 var user: asana.User;
 
 client.users.me()
@@ -21,7 +32,7 @@ client.users.me()
       .then((projects: {data: Array<asana.Project>}) => projects.data);
   })
   .then((projects: Array<asana.Project>): Array<Promise<Array<asana.Task>>> => {
-    console.log('Fetching your projects\' tasks..');
+    console.log('Fetching your projects\' tasks...');
     return projects.map((project: asana.Project): Promise<Array<asana.Task>> => {
       return client.tasks.findAll({
         assignee: user.id,
